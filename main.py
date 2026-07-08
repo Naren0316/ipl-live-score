@@ -22,6 +22,7 @@ import logging
 from typing import Optional
 
 import config
+import db
 from cricket_api import CricketAPIClient, CricketAPIError, NoLiveMatchError
 from models import Match
 from ball_detector import BallDetector
@@ -37,19 +38,32 @@ def resolve_match_id(client: CricketAPIClient) -> str:
 
 
 def run_loop(client: CricketAPIClient) -> None:
+    db.init_db()
     detector = BallDetector()
     match_id: Optional[str] = None
     previous_state: Optional[Match] = None
 
     print("=" * 60)
-    print(" IPL LIVE SCORE - TERMINAL BACKEND (Day 2)")
+    print(" IPL LIVE SCORE - TERMINAL BACKEND (Day 3)")
     print("=" * 60)
 
     while True:
         try:
             if match_id is None:
                 match_id = resolve_match_id(client)
-                print(f"Tracking match id: {match_id}\n")
+                db.ensure_match(match_id)
+
+                # Resume from DB instead of starting blind — if we've seen
+                # this match before (e.g. script restarted), pick up where
+                # we left off rather than re-announcing "innings started".
+                previous_state = db.get_last_match_state(match_id)
+                if previous_state:
+                    print(f"Resuming match {match_id} from saved state:")
+                    for inn in previous_state.innings.values():
+                        print(f"  {inn.team}: {inn.runs}/{inn.wickets} in {inn.overs} overs")
+                else:
+                    print(f"Tracking new match id: {match_id}")
+                print()
 
             payload = client.get_match_info(match_id)
             current_state = Match.from_payload(match_id, payload)
@@ -57,6 +71,7 @@ def run_loop(client: CricketAPIClient) -> None:
             events = detector.detect(previous_state, current_state)
             for ball in events:
                 print(ball.summary())
+                db.save_ball(match_id, ball)
 
             previous_state = current_state
 

@@ -2,16 +2,19 @@
 
 A real-time IPL score tracker backend — polls a live cricket API, detects **every new ball bowled**, and updates the score automatically. Terminal-first, API-driven, built to later plug into a web frontend.
 
-## Status: Day 2/8 — Models + testable ball detection
+## Status: Day 3/8 — SQLite persistence + resumable state
 
 ## Features
 - Polls live match data on an interval (default: every 5s)
 - Detects new balls by diffing overs/runs/wickets against the last poll (not just raw score snapshots)
 - Auto-finds a live IPL match, or track a specific match via `MATCH_ID`
 - Retry + backoff on flaky network/API responses
-- Clean separation: API layer (`cricket_api.py`) knows nothing about scoring logic, which knows nothing about printing — three independent layers
+- Clean separation: API layer, scoring logic, persistence, and orchestration are four independent, testable modules
 - Proper domain models (`Match`, `Innings`, `Ball`) instead of raw dicts
-- Ball detection logic (`ball_detector.py`) is pure and independently unit-tested — no network needed to verify scoring logic is correct
+- Ball detection logic is pure and independently unit-tested — no network needed
+- **Every ball is logged to SQLite** — history survives restarts
+- **Resumable**: if the script crashes or is stopped, restarting picks up exactly where it left off instead of re-announcing "innings started"
+- `history.py` CLI to query saved match history
 
 > Note: true single-delivery ball-by-ball commentary is a paid feature on the underlying API. The free tier gives over-level score snapshots, which this backend diffs to detect individual balls where possible (`balls_covered == 1`), and falls back to reporting a combined update when polling missed more than one ball.
 
@@ -23,19 +26,28 @@ A real-time IPL score tracker backend — polls a live cricket API, detects **ev
 ## Project structure
 ```
 ipl-live-score/
-├── config.py            # API key, endpoints, polling settings
+├── config.py            # API key, endpoints, polling, DB path
 ├── cricket_api.py       # API client — all HTTP/network logic lives here
 ├── models.py             # Match / Innings / Ball domain models
 ├── ball_detector.py      # Pure diffing logic — turns state changes into Ball events
-├── main.py                # Polling loop — fetch, detect, print (no logic of its own)
+├── db.py                  # SQLite persistence — all SQL logic lives here
+├── main.py                # Polling loop — fetch, detect, save, print
+├── history.py             # CLI to query saved match history
 ├── test_ball_detector.py  # Unit tests for ball detection (no network required)
+├── test_db.py             # Unit tests for persistence (uses temp DB, no network)
 ├── push.sh
 └── README.md
 ```
 
-Run the tests:
+Run all tests:
 ```bash
-python3 -m unittest test_ball_detector.py -v
+python3 -m unittest discover -p "test_*.py" -v
+```
+
+Query saved history:
+```bash
+python3 history.py --list                # see all matches you've tracked
+python3 history.py --match <match_id>     # full ball-by-ball log for one match
 ```
 
 ## Setup
@@ -81,7 +93,7 @@ python3 main.py
 ## Roadmap
 - [x] Day 1 — Backend core: API client + polling engine + terminal output
 - [x] Day 2 — Proper `Match` / `Innings` / `Ball` models, unit-tested ball detection logic
-- [ ] Day 3 — SQLite persistence (score history survives restarts)
+- [x] Day 3 — SQLite persistence, resumable state, ball history logged permanently
 - [ ] Day 4 — Event system (pub/sub) so multiple consumers can listen for `new_ball` events
 - [ ] Day 5–6 — FastAPI + WebSocket layer to push live updates
 - [ ] Day 7 — Frontend consuming the WebSocket
