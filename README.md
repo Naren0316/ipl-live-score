@@ -2,18 +2,17 @@
 
 A real-time IPL score tracker backend — polls a live cricket API, detects **every new ball bowled**, and updates the score automatically. Terminal-first, API-driven, built to later plug into a web frontend.
 
-## Status: Day 3/8 — SQLite persistence + resumable state
+## Status: Day 4/8 — Event bus (pub/sub)
 
 ## Features
 - Polls live match data on an interval (default: every 5s)
 - Detects new balls by diffing overs/runs/wickets against the last poll (not just raw score snapshots)
 - Auto-finds a live IPL match, or track a specific match via `MATCH_ID`
 - Retry + backoff on flaky network/API responses
-- Clean separation: API layer, scoring logic, persistence, and orchestration are four independent, testable modules
 - Proper domain models (`Match`, `Innings`, `Ball`) instead of raw dicts
 - Ball detection logic is pure and independently unit-tested — no network needed
-- **Every ball is logged to SQLite** — history survives restarts
-- **Resumable**: if the script crashes or is stopped, restarting picks up exactly where it left off instead of re-announcing "innings started"
+- Every ball is logged to SQLite — history survives restarts, and the app resumes correctly after a crash
+- **Event-driven core**: the polling loop only publishes `"new_ball"` events on an `EventBus`. Printing to terminal and saving to the DB are independent subscribers with zero knowledge of each other. Adding a WebSocket broadcaster (Day 5-6) means adding one more subscriber — no changes to the loop
 - `history.py` CLI to query saved match history
 
 > Note: true single-delivery ball-by-ball commentary is a paid feature on the underlying API. The free tier gives over-level score snapshots, which this backend diffs to detect individual balls where possible (`balls_covered == 1`), and falls back to reporting a combined update when polling missed more than one ball.
@@ -31,10 +30,12 @@ ipl-live-score/
 ├── models.py             # Match / Innings / Ball domain models
 ├── ball_detector.py      # Pure diffing logic — turns state changes into Ball events
 ├── db.py                  # SQLite persistence — all SQL logic lives here
-├── main.py                # Polling loop — fetch, detect, save, print
+├── event_bus.py           # Pub/sub — decouples the loop from what reacts to a ball
+├── main.py                # Polling loop — fetch, detect, publish (no side effects of its own)
 ├── history.py             # CLI to query saved match history
 ├── test_ball_detector.py  # Unit tests for ball detection (no network required)
 ├── test_db.py             # Unit tests for persistence (uses temp DB, no network)
+├── test_event_bus.py      # Unit tests for the event bus
 ├── push.sh
 └── README.md
 ```
@@ -94,7 +95,7 @@ python3 main.py
 - [x] Day 1 — Backend core: API client + polling engine + terminal output
 - [x] Day 2 — Proper `Match` / `Innings` / `Ball` models, unit-tested ball detection logic
 - [x] Day 3 — SQLite persistence, resumable state, ball history logged permanently
-- [ ] Day 4 — Event system (pub/sub) so multiple consumers can listen for `new_ball` events
+- [x] Day 4 — Event bus (pub/sub): loop publishes events, printing/DB are independent subscribers
 - [ ] Day 5–6 — FastAPI + WebSocket layer to push live updates
 - [ ] Day 7 — Frontend consuming the WebSocket
 - [ ] Day 8 — Deployment
