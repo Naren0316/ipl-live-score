@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPL Live Score</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A1120;
+    --panel: #101A2E;
+    --panel-border: #1E2C47;
+    --amber: #F2B705;
+    --amber-dim: #7A5E08;
+    --red: #E8515C;
+    --green: #4FD1A5;
+    --text: #E7ECF5;
+    --text-dim: #7A879E;
+  }
+
+  * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, #16233d 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .live-dot.on {
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .connect-form {
+    display: flex;
+    gap: 8px;
+  }
+  .connect-form input {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    width: 150px;
+  }
+  .connect-form input::placeholder { color: var(--text-dim); }
+  .connect-form button {
+    background: var(--amber);
+    color: #1A1300;
+    border: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .connect-form button:hover { filter: brightness(1.08); }
+  .connect-form button:active { transform: translateY(1px); }
+
+  /* ---------- scoreboard ---------- */
+  .board {
+    width: 100%;
+    max-width: 640px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 32px 28px 26px;
+    text-align: center;
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+  }
+
+  .team-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+    min-height: 16px;
+  }
+
+  .digits {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(48px, 12vw, 76px);
+    line-height: 1;
+    color: var(--amber);
+    text-shadow: 0 0 18px rgba(242, 183, 5, 0.35), 0 0 2px rgba(242, 183, 5, 0.6);
+    letter-spacing: 0.02em;
+    transition: text-shadow 0.15s ease;
+  }
+  .digits.flash {
+    text-shadow: 0 0 36px rgba(242, 183, 5, 0.9), 0 0 6px rgba(242, 183, 5, 1);
+  }
+  .digits .slash { color: var(--amber-dim); margin: 0 4px; }
+
+  .oversline {
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    margin-top: 10px;
+  }
+  .oversline b { color: var(--text); }
+
+  .status-line {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--text-dim);
+    min-height: 18px;
+  }
+
+  /* ---------- feed ---------- */
+  .feed-wrap {
+    width: 100%;
+    max-width: 640px;
+    margin-top: 22px;
+  }
+  .feed-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-left: 2px;
+  }
+  .feed {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ball-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    animation: slide-in 0.3s ease;
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ball-row.wicket { border-color: rgba(232, 81, 92, 0.4); }
+  .ball-row.boundary { border-color: rgba(79, 209, 165, 0.35); }
+
+  .over-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    min-width: 40px;
+  }
+  .event-dot {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px; font-weight: 700;
+    background: rgba(122, 135, 158, 0.15);
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .event-dot.runs { background: rgba(122, 135, 158, 0.15); color: var(--text); }
+  .event-dot.boundary { background: rgba(79, 209, 165, 0.18); color: var(--green); }
+  .event-dot.wicket { background: rgba(232, 81, 92, 0.2); color: var(--red); }
+
+  .ball-desc {
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+  }
+  .ball-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 30px 10px;
+    border: 1px dashed var(--panel-border);
+    border-radius: 8px;
+  }
+
+  @media (max-width: 480px) {
+    .topbar { flex-direction: column; align-items: flex-start; }
+    .connect-form { width: 100%; }
+    .connect-form input { flex: 1; width: auto; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="live-dot" id="liveDot"></span>
+      IPL Live Score
+    </div>
+    <form class="connect-form" onsubmit="return handleConnect(event)">
+      <input id="matchIdInput" type="text" placeholder="match id" autocomplete="off" />
+      <button type="submit">Watch</button>
+    </form>
+  </div>
+
+  <div class="board">
+    <div class="team-name" id="teamName">Waiting for a match</div>
+    <div class="digits" id="digits">--<span class="slash">/</span>-</div>
+    <div class="oversline"><b id="oversVal">0.0</b> overs</div>
+    <div class="status-line" id="statusLine">Enter a match id above to connect</div>
+  </div>
+
+  <div class="feed-wrap">
+    <div class="feed-label">Ball by ball</div>
+    <div class="feed" id="feed">
+      <div class="empty-state" id="emptyState">No deliveries yet</div>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = "http://localhost:8000";
+  const WS_BASE = "ws://localhost:8000";
+
+  let ws = null;
+
+  function setStatus(text) {
+    document.getElementById('statusLine').textContent = text;
+  }
+
+  function setLive(on) {
+    document.getElementById('liveDot').classList.toggle('on', on);
+  }
+
+  function updateScoreboard(team, runs, wickets, overs) {
+    document.getElementById('teamName').textContent = team || '—';
+    const digitsEl = document.getElementById('digits');
+    digitsEl.innerHTML = `${runs}<span class="slash">/</span>${wickets}`;
+    document.getElementById('oversVal').textContent = overs;
+
+    digitsEl.classList.add('flash');
+    setTimeout(() => digitsEl.classList.remove('flash'), 400);
+  }
+
+  function classifyBall(ball) {
+    if (ball.wickets_added > 0) return 'wicket';
+    if (ball.runs_scored >= 4) return 'boundary';
+    return 'runs';
+  }
+
+  function prependBallToFeed(ball) {
+    const feed = document.getElementById('feed');
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.remove();
+
+    const kind = classifyBall(ball);
+    const row = document.createElement('div');
+    row.className = `ball-row ${kind === 'wicket' ? 'wicket' : kind === 'boundary' ? 'boundary' : ''}`;
+
+    const dotLabel = ball.wickets_added > 0 ? 'W' : ball.runs_scored;
+    const time = ball.timestamp ? new Date(ball.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) : '';
+
+    row.innerHTML = `
+      <span class="over-badge">${ball.over}</span>
+      <span class="event-dot ${kind}">${dotLabel}</span>
+      <span class="ball-desc">${ball.summary}</span>
+      <span class="ball-time">${time}</span>
+    `;
+    feed.prepend(row);
+
+    // Keep the feed from growing unbounded in the DOM
+    while (feed.children.length > 60) {
+      feed.removeChild(feed.lastChild);
+    }
+  }
+
+  async function loadHistory(matchId) {
+    try {
+      const res = await fetch(`${API_BASE}/matches/${matchId}/history`);
+      if (!res.ok) return;
+      const balls = await res.json();
+      if (balls.length === 0) return;
+
+      // Feed expects newest-first rendering via prepend, so play oldest -> newest
+      balls.forEach(prependBallToFeed);
+      const last = balls[balls.length - 1];
+      updateScoreboard(last.team, last.total_runs, last.total_wickets, last.over);
+    } catch (err) {
+      console.warn('Could not load history', err);
+    }
+  }
+
+  function connectWebSocket(matchId) {
+    if (ws) ws.close();
+
+    ws = new WebSocket(`${WS_BASE}/ws/${matchId}`);
+
+    ws.onopen = () => {
+      setLive(true);
+      setStatus(`Connected — tracking ${matchId}`);
+    };
+
+    ws.onclose = () => {
+      setLive(false);
+      setStatus('Disconnected. Reconnecting in 3s...');
+      setTimeout(() => connectWebSocket(matchId), 3000);
+    };
+
+    ws.onerror = () => {
+      setStatus('Connection error — check the API server is running');
+    };
+
+    ws.onmessage = (event) => {
+      const ball = JSON.parse(event.data);
+      updateScoreboard(ball.team, ball.total_runs, ball.total_wickets, ball.over);
+      prependBallToFeed(ball);
+    };
+  }
+
+  function handleConnect(evt) {
+    evt.preventDefault();
+    const matchId = document.getElementById('matchIdInput').value.trim();
+    if (!matchId) return false;
+
+    setStatus(`Loading history for ${matchId}...`);
+    loadHistory(matchId).then(() => connectWebSocket(matchId));
+    return false;
+  }
+</script>
+</body>
+</html>
