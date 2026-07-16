@@ -2,7 +2,7 @@
 
 A real-time IPL score tracker backend — polls a live cricket API, detects **every new ball bowled**, and updates the score automatically. Terminal-first, API-driven, built to later plug into a web frontend.
 
-## Status: Day 6/8 — Real frontend (LED scoreboard UI)
+## Status: Day 7/8 — Deployment-ready
 
 ## Features
 - Polls live match data on an interval (default: every 5s)
@@ -13,8 +13,9 @@ A real-time IPL score tracker backend — polls a live cricket API, detects **ev
 - Ball detection logic is pure and independently unit-tested — no network needed
 - Every ball is logged to SQLite — history survives restarts, and the app resumes correctly after a crash
 - Event-driven core: the polling loop only publishes `"new_ball"` events; printing, DB saving, and WebSocket broadcasting are independent subscribers
-- FastAPI server (`api.py`) — REST + WebSocket layer, runs the polling loop in a background thread
-- **`frontend/index.html`** — a real, presentable live scoreboard: stadium-LED-style score display, live ball-by-ball feed, auto-reconnects if the connection drops, loads existing history on connect so you're never starting from zero
+- FastAPI server (`api.py`) serves the API, WebSocket, **and the frontend itself** — one deployed service, one URL
+- `frontend/index.html` — LED-style live scoreboard with ball-by-ball feed, auto-reconnect, loads history on connect
+- CORS origins and port are environment-configurable for production
 - `history.py` CLI to query saved match history
 
 > Note: true single-delivery ball-by-ball commentary is a paid feature on the underlying API. The free tier gives over-level score snapshots, which this backend diffs to detect individual balls where possible (`balls_covered == 1`), and falls back to reporting a combined update when polling missed more than one ball.
@@ -45,6 +46,9 @@ ipl-live-score/
 ├── test_event_bus.py         # Unit tests for the event bus
 ├── test_connection_manager.py # Unit tests for websocket connection handling
 ├── requirements.txt
+├── Procfile                  # Tells Render/Railway/Heroku how to start the app
+├── Dockerfile                 # Alternative: container-based deployment
+├── .env.example               # Documents required env vars (no real secrets)
 ├── push.sh
 └── README.md
 ```
@@ -68,6 +72,25 @@ Then open `frontend/index.html` in a browser (just double-click it, no build/ser
 - Automatic reconnection if the WebSocket drops
 
 The original terminal-only version (`python3 main.py`) still works exactly as before — `api.py` and `frontend/` are additive, not a replacement.
+
+As of Day 7, `api.py` also serves the frontend itself — visiting `http://localhost:8000` directly shows the scoreboard, no need to open the HTML file separately.
+
+## Deploying (Day 8)
+
+Recommended host: **[Render](https://render.com)** (free tier, supports the persistent background thread this app needs — platforms like Vercel don't, since they're built for stateless serverless functions).
+
+1. Push this repo to GitHub (already done, day by day)
+2. On Render: **New → Web Service** → connect this GitHub repo
+3. Build command: `pip install -r requirements.txt`
+4. Start command: `uvicorn api:app --host 0.0.0.0 --port $PORT` (or Render will detect the `Procfile` automatically)
+5. Add environment variables under **Environment**:
+   - `CRICKET_API_KEY` = your real key
+   - `ALLOWED_ORIGINS` = your Render URL once you know it, e.g. `https://ipl-live-score.onrender.com`
+6. Deploy. Visit the URL Render gives you — the scoreboard loads directly.
+
+**Known limitation to be upfront about:** Render's free tier uses an ephemeral filesystem, meaning the SQLite database (`ipl_scores.db`) gets wiped on every redeploy or restart. For an 8-day project this is a fine tradeoff — score history just starts fresh after a restart, live tracking still works perfectly. If persistent history across restarts matters later, that means moving to a hosted database (e.g. Render's managed Postgres) instead of local SQLite — a real change, not a config tweak, so worth knowing now rather than being surprised by it.
+
+Alternative: `Dockerfile` is included if you'd rather deploy via a container-based platform (Railway, Fly.io, etc.) instead of a buildpack.
 
 Run all tests:
 ```bash
@@ -127,6 +150,7 @@ python3 main.py
 - [x] Day 4 — Event bus (pub/sub): loop publishes events, printing/DB are independent subscribers
 - [x] Day 5 — FastAPI + WebSocket: live ball events pushed to any connected browser
 - [x] Day 6 — Real frontend: LED-style live scoreboard + ball-by-ball feed, auto-reconnect
+- [x] Day 7 — Deployment-ready: dynamic frontend URLs, configurable CORS, Procfile, Dockerfile, .env.example
 - [ ] Day 5–6 — FastAPI + WebSocket layer to push live updates
 - [ ] Day 7 — Frontend consuming the WebSocket
 - [ ] Day 8 — Deployment
