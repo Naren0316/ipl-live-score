@@ -34,6 +34,8 @@ from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 import config
 import db
@@ -156,18 +158,28 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="IPL Live Score API", lifespan=lifespan)
 
-# Permissive CORS for local development so test_client.html / a future
-# frontend on a different port can connect. Tighten this before deploying.
+# Restrict this in production via the ALLOWED_ORIGINS env var (comma-separated).
+# Defaults to "*" for local development convenience only.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Serve the frontend as static files. This means ONE deployed service
+# handles both the API/WebSocket and the UI — visit the deployed URL
+# directly and you get the scoreboard, no separate frontend hosting needed.
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
 
 @app.get("/")
-def root() -> dict:
+def serve_frontend() -> FileResponse:
+    return FileResponse("frontend/index.html")
+
+
+@app.get("/health")
+def health() -> dict:
     return {
         "status": "ok",
         "active_websocket_connections": manager.connection_count(),
