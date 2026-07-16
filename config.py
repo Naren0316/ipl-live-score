@@ -49,6 +49,18 @@ RETRY_BACKOFF_SECONDS: float = 2.0   # multiplied by attempt number
 DB_PATH: str = os.environ.get("DB_PATH", "ipl_scores.db")
 
 # ---------------------------------------------------------------------------
+# Deployment (Day 7)
+# ---------------------------------------------------------------------------
+# Comma-separated list of allowed origins for CORS, e.g.
+#   ALLOWED_ORIGINS="https://yourapp.onrender.com,https://yourdomain.com"
+# Defaults to "*" (allow all) which is fine for local dev, NOT for production.
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
+ALLOWED_ORIGINS: list[str] = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+
+# Most hosting platforms (Render, Railway, etc.) inject PORT at runtime.
+PORT: int = int(os.environ.get("PORT", 8000))
+
+# ---------------------------------------------------------------------------
 # Misc
 # ---------------------------------------------------------------------------
 DEBUG: bool = os.environ.get("DEBUG", "0") == "1"
