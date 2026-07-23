@@ -1,0 +1,82 @@
+"""
+demo_day3.py
+-------------
+Day 3 demo: generates a handful of logged attack runs, then produces
+cross-run analytics, a batch PIN strength analysis, and a full exportable
+training report (JSON + Markdown). Entirely local -- see backend/vault.py.
+
+Usage:
+    python demo_day3.py
+"""
+
+from backend import analytics, report
+from backend.attack_engine import Strategy, run_attack
+from backend.attempt_log import init_db
+from backend.batch_analysis import analyze_batch
+from backend.lockout_policy import basic_threshold, ios_style, no_lockout
+from backend.vault import SimulatedVault
+
+
+def print_header(title: str) -> None:
+    print("\n" + "=" * 66)
+    print(f" {title}")
+    print("=" * 66)
+
+
+def generate_sample_runs() -> None:
+    """Log a handful of varied attack runs so analytics has real data to work with."""
+    init_db()
+    scenarios = [
+        ("1234", Strategy.PRIORITY, no_lockout(), "vault-a"),
+        ("0000", Strategy.PRIORITY, no_lockout(), "vault-b"),
+        ("8503", Strategy.PRIORITY, basic_threshold(5), "vault-c"),
+        ("9317", Strategy.PRIORITY, ios_style(), "vault-d"),
+        ("2000", Strategy.EXHAUSTIVE, no_lockout(), "vault-e"),
+    ]
+    for pin, strategy, policy, vault_id in scenarios:
+        vault = SimulatedVault(correct_pin=pin, vault_id=vault_id)
+        run_attack(vault, strategy=strategy, policy=policy, log_attempts=True)
+
+
+def demo_cross_run_analytics() -> None:
+    print_header("CROSS-RUN ANALYTICS")
+    stats = analytics.cross_run_stats()
+    print(f"  Total runs logged:        {stats.total_runs}")
+    print(f"  Successful runs:          {stats.successful_runs}")
+    print(f"  Success rate:             {stats.success_rate * 100:.1f}%")
+    print(f"  Avg attempts to crack:    {stats.avg_attempts_to_crack}")
+    print(f"  Most common win category: {stats.most_common_winning_category}")
+
+
+def demo_batch_analysis() -> None:
+    print_header("BATCH PIN STRENGTH ANALYSIS")
+    sample_pins = [
+        "1234", "0000", "1111", "2580", "1990", "7392",
+        "8503", "0417", "6841", "9999", "2001", "3719",
+    ]
+    result = analyze_batch(sample_pins, weakest_n=5)
+    print(f"  PINs analyzed: {result.total_pins}")
+    print(f"  Average score: {result.average_score}/100")
+    print(f"  Risk tiers:    {result.risk_tier_distribution}")
+    print("  Weakest PINs in this set:")
+    for w in result.weakest_pins:
+        print(
+            f"    {w['pin']} -> score={w['strength_score']:>5} "
+            f"risk={w['risk_tier']:<8} ({w['pattern_category']})"
+        )
+
+
+def demo_full_report() -> None:
+    print_header("FULL TRAINING REPORT EXPORT")
+    sample_pins = ["1234", "0000", "7392", "8503", "9999"]
+    full_report = report.build_report(batch_pins=sample_pins, title="Day 3 Demo Training Report")
+    paths = report.export_report(full_report, basename="demo_day3_report")
+    for p in paths:
+        print(f"  wrote {p}")
+
+
+if __name__ == "__main__":
+    generate_sample_runs()
+    demo_cross_run_analytics()
+    demo_batch_analysis()
+    demo_full_report()
